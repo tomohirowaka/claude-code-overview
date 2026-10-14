@@ -13,7 +13,7 @@
     },
     {
       "name": "session-title",
-      "description": "Reminds Claude to rename the session in the desktop app's sidebar whenever the task's state changes, as <issue or task> <subject> <state>",
+      "description": "Reminds Claude to rename the session in the desktop app's sidebar whenever the task's state changes: issue or task, subject, state",
       "source": "./plugins/session-title"
     }
   ]

@@ -79,9 +79,9 @@ It sets the language of the pane's own headings. Claude writes the contents in w
 
 The same marketplace carries a small companion. It asks Claude to keep the session's name in the sidebar current, as `<issue or task> <subject> <state>` (for example `ABC-123 onboarding checklist waiting for review`), so a list of sessions shows which one is waiting for you.
 
-- It adds a rule to Claude's system prompt, keeps the desktop app's rename tool at hand, and adds one line to the result of each `overview` update: if the task's state changed, rename the session too. Claude judges whether it changed; nothing is renamed every turn.
-- It needs the desktop app's rename tool (`set_session_title`). Where that tool does not exist, such as the terminal, it does nothing.
-- If you named a session yourself, the app asks you before Claude renames it (it does not ask in bypass permissions mode).
+- It adds a rule to Claude's system prompt. It keeps the desktop app's rename tool (`set_session_title`) at hand and adds the same rule to that tool's description. And it adds one line to the result of each `overview` update: if the task's state changed, rename the session too. Claude judges whether it changed, and is told not to rename every turn.
+- Where the session has no rename tool, such as the terminal, it adds nothing.
+- If you named a session yourself, the app asks you before Claude renames it. In bypass permissions mode the app does not ask, so a name you set by hand is replaced when the task's state changes. This is the app's own behavior, as its rename tool describes it.
 - Without `overview` installed, the rule still applies; only the reminder after an update is missing.
 - It makes no network requests and calls no model of its own.
 
@@ -89,7 +89,7 @@ The same marketplace carries a small companion. It asks Claude to keep the sessi
 claude plugin install session-title@claude-code-overview
 ```
 
-Then start a new session. It needs a Claude Code build whose hook modules know the `prompt.compose` event: tested with 2.1.295; 2.1.282 is too old.
+Then start a new session. Its tests pass on Claude Code 2.1.295. On 2.1.282 the module does not load: that build does not know the `prompt.compose` event.
 
 ## License
 
@@ -143,11 +143,11 @@ claude plugin install overview@claude-code-overview --config language=ja
 
 ### session-title（2つ目の plugin、デスクトップアプリ向け）
 
-同じ配布元に、小さな相棒を置いています。サイドバーに出るセッションの名前を、Claude が作業の状態に合わせて `<issue か作業名> <対象> <状態>`（例: `ABC-123 入社手続きチェックリスト レビュー待ち`）に書き換えます。セッションの一覧を見るだけで、どれが自分の返事を待っているかがわかります。
+同じ配布元に、小さな相棒を置いています。サイドバーに出るセッションの名前を、作業の状態に合わせて `<issue か作業名> <対象> <状態>`（例: `ABC-123 入社手続きチェックリスト レビュー待ち`）に書き換えるよう、Claude に頼みます。セッションの一覧を見るだけで、どれが自分の返事を待っているかがわかります。
 
-- システムプロンプトに決まりを足し、デスクトップアプリの改名ツールをすぐ使える位置に出し、`overview` を更新した結果に「作業の状態が変わったなら、セッション名も変える」という1行を足します。変わったかどうかは Claude が判断します。毎ターン書き換えることはありません。
-- デスクトップアプリの改名ツール（`set_session_title`）が要ります。ターミナルなど、このツールが無い場面では何もしません。
-- 自分で付けた名前を Claude が変えるときは、アプリが先に確認を出します（権限を確認しないモードでは出ません）。
+- システムプロンプトに決まりを足します。デスクトップアプリの改名ツール（`set_session_title`）をすぐ使える位置に出し、そのツールの説明にも同じ決まりを足します。そして `overview` を更新した結果に「作業の状態が変わったなら、セッション名も変える」という1行を足します。変わったかどうかは Claude が判断し、毎ターンは書き換えないよう指示してあります。
+- ターミナルなど、セッションに改名ツールが無い場面では何も足しません。
+- 自分で付けた名前を Claude が変えるときは、アプリが先に確認を出します。bypass permissions モードではアプリが確認を出さないので、手で付けた名前も、作業の状態が変わると書き換わります。これはアプリ側の動きで、改名ツールの説明にそう書かれています。
 - `overview` を入れていなくても決まりは効きます。更新のあとの声かけだけが無くなります。
 - plugin 自身は外部と通信せず、モデルも呼びません。
 
@@ -155,7 +155,7 @@ claude plugin install overview@claude-code-overview --config language=ja
 claude plugin install session-title@claude-code-overview
 ```
 
-入れたら新しいセッションを開いてください。hook モジュールが `prompt.compose` を扱える Claude Code が要ります。2.1.295 で確かめています。2.1.282 では動きません。
+入れたら新しいセッションを開いてください。テストは Claude Code 2.1.295 で通っています。2.1.282 ではモジュールが読み込まれません（`prompt.compose` というイベントを知らないためです）。
 
 ### ライセンス
 

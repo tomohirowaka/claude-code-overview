@@ -1,4 +1,4 @@
-import type { PromptComposeInput, PromptComposeSection, Register } from 'claude-code'
+import type { EngineInterface, PromptComposeInput, PromptComposeSection, Register } from 'claude-code'
 
 // A session's name is set when it starts and does not follow the work, and the model forgets to rename it
 // at the moment the state changes: the rename tool waits behind ToolSearch and nothing points at it then.
@@ -6,7 +6,7 @@ import type { PromptComposeInput, PromptComposeSection, Register } from 'claude-
 // result, which the model calls at each state change anyway.
 export const TITLE_TOOL = 'mcp__ccd_session_mgmt__set_session_title'
 
-// overview registers its tool as mcp__overview__update, or mcp__plugin_overview_overview__update when installed.
+// overview's tool is mcp__overview__update; the longer spelling is accepted in case a build namespaces plugin tools.
 export const isOverviewUpdate = (tool: string): boolean => /^mcp__(?:plugin_)?overview(?:_overview)?__update$/.test(tool)
 
 const FORM = '`<issue or task> <subject> <state>`'
@@ -15,7 +15,7 @@ export const rule = (): PromptComposeSection => ({
   id: 'session-title:rule',
   scope: 'session',
   text: [
-    `Keep this session's name (its sign in the sidebar) current: whenever the task's state changes, rename the session with ${TITLE_TOOL} (session_id "self") to the short form ${FORM}, without being asked.`,
+    `Keep this session's name, shown in the sidebar, current: whenever the task's state changes, rename the session with ${TITLE_TOOL} (session_id "self") to the short form ${FORM}, without being asked.`,
     'The state changes when work starts, when the session starts waiting (for a reply, a confirmation, a sign-in, a review, an approval), and when the work is done, handed over or put on hold. Do not rename every turn.',
     'Use the issue key if there is one, else a plain name, and write the name in the language the person is using. Never put personal data, secrets or internal URLs in it.',
     'Examples: `ABC-123 onboarding checklist in progress`, `ABC-123 onboarding checklist waiting for review`.',
@@ -23,11 +23,20 @@ export const rule = (): PromptComposeSection => ({
 })
 
 export const nudge = (): string =>
-  `The overview was updated. If the task's state changed (started, waiting, done, handed over, on hold), rename the session to match, as ${FORM}, with ${TITLE_TOOL} (session_id "self"). If it did not change, do nothing.`
+  `From the session-title plugin: the overview was updated. If the task's state changed (started, waiting, done, handed over, on hold), rename the session to match, as ${FORM}, with ${TITLE_TOOL} (session_id "self"). If it did not change, do nothing.`
 
 // Only the main conversation of a session someone watches: not a -p run drawing nowhere, not a teammate, not --bare.
 export const isWatchedMain = (e: Pick<PromptComposeInput, 'tools' | 'surfaces' | 'traits'>): boolean =>
   e.tools.includes(TITLE_TOOL) && e.surfaces.length > 0 && !e.traits.includes('teammate') && !e.traits.includes('bare')
+
+// Set once the engine has described the rename tool to this plugin: the session has it.
+let sawTitleTool = false
+
+// Whether there is a rename tool to point at. Where there is none (the terminal, a -p run), a reminder
+// would name a tool the model cannot call. Either sign is enough, so a reload that clears the flag
+// does not silence the reminder.
+const hasTitleTool = async ($: EngineInterface): Promise<boolean> =>
+  sawTitleTool || (await $.tool.list().catch(() => [])).some(t => t.name === TITLE_TOOL)
 
 export const register: Register = on => {
   on('prompt.compose', async ($, e, next) => {
@@ -41,6 +50,7 @@ export const register: Register = on => {
   on('tool.describe', async ($, e, next) => {
     const described = await next(e)
     if (e.tool !== TITLE_TOOL) return described
+    sawTitleTool = true
     return {
       ...described,
       description: `${described.description}\n\nThe session-title plugin's rule: also rename this session (session_id "self") whenever the task's state changes, as ${FORM}.`,
@@ -55,6 +65,7 @@ export const register: Register = on => {
     const o = e.origin as { kind?: string; tool?: string }
     const failed = e.message.content.some(b => b.type === 'tool_result' && b.is_error === true)
     if (e.agentId !== undefined || o.kind !== 'tool' || !isOverviewUpdate(o.tool ?? '') || failed) return next(e)
+    if (!(await hasTitleTool($))) return next(e)
     return next({ ...e, message: { ...e.message, content: [...e.message.content, { type: 'text', text: nudge() }] } })
   })
 }
